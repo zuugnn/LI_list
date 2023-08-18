@@ -98,9 +98,15 @@ class LessonInCrawler:
         t_edu_tmp = soup.select_one(
             "#content > div.content3_wrap.clearfix > div:nth-child(8) > div > table > tbody > tr:nth-child(1)"
         ).find_next_siblings()
-        # t_edu = "|".join(str(i) for i in t_edu_tmp)
-
-        print([i.string for i in [j.find_all("td") for j in t_edu_tmp]], "*****")
+        t_edu_l1 = []
+        for i in t_edu_tmp:
+            t_edu_l2 = []
+            for j in i.find_all("td"):
+                t_edu_l2.append(str(j.string).strip())
+            t_edu_s_tmp = "|".join(t_edu_l2)
+            t_edu_l1.append(t_edu_s_tmp)
+        t_edu_s = "||".join(t_edu_l1)
+        print(t_edu_s)
 
         t_introduct_tmp = soup.select_one(
             "#content > div.content3_wrap.clearfix > div:nth-child(12) > div > div > ul > li:nth-child(1)"
