@@ -46,11 +46,13 @@ class LessonInCrawler:
 
             for e in tutor_list_html:
                 NOs.append(str(e["id"])[9:])
+            print("**** " + str(page) + "페이지의 강사번호 입력 완료! ****")
 
         self.NOs = NOs
+        print("****** 전체 강사번호 입력 완료! ******")
+
 
     def Check_dir(self):
-        """folrder root 존재 여부 확인"""
         if not os.path.isdir(self.folder_root):
             os.mkdir(self.folder_root)
 
@@ -186,7 +188,7 @@ class LessonInCrawler:
 
         self.Save_Tutor_info_to_csv(self.data_list)
 
-        print(str(len(self.NOs)) + "명의 강사 정보를 입력했습니다.")
+        print("******** " + str(len(self.NOs)) + "명의 강사 정보를 입력했습니다. ********")
 
 
 if __name__ == "__main__":
