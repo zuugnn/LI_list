@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup as bs
 import urllib.request
-from selenium import webdriver
 import pandas as pd
 import datetime
 import math
@@ -50,7 +49,6 @@ class LessonInCrawler:
 
         self.NOs = NOs
         print("****** 전체 강사번호 입력 완료! ******")
-
 
     def Check_dir(self):
         if not os.path.isdir(self.folder_root):
