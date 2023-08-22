@@ -12,8 +12,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential, after_log
 from concurrent.futures import ThreadPoolExecutor
 from win32comext.shell import shell, shellcon
 import logging
+import sys
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +31,7 @@ class LessonInCrawler:
             self.tutor_total = int(max_pages * 25)
 
         # self.executor = ThreadPoolExecutor(max_workers=min(self.max_pages + 3, os.cpu_count()))
-        self.limit = asyncio.Semaphore(5)
+        self.limit = asyncio.Semaphore(7)
         self.tutor_cnt = 0
         self.folder_root = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOP, 0, 0), "LessonIn")
         excel_name = "tutor_list_" + str(datetime.datetime.now().date())
@@ -77,7 +78,7 @@ class LessonInCrawler:
         data = pd.DataFrame(
             {
                 "업데이트날짜": [t_update],
-                "강사번호": [tutor_no],
+                "강사번호": [int(tutor_no)],
                 "이름": [t_name],
                 "연락처": [t_phone],
                 "아이디": [t_id],
@@ -113,29 +114,38 @@ class LessonInCrawler:
 
         """
         if os.path.isfile(self.excel_path):
-            data.to_excel(self.excel_path, mode="a", header=False, index=False, encoding="utf-8-sig")
+            data.to_csv(self.excel_path, mode="a", header=False, index=False, encoding="utf-8-sig")
 
         else:
-            data.to_excel(self.excel_path, mode="w", header=True, index=False, encoding="utf-8-sig")
+            data.to_csv(self.excel_path, mode="w", header=True, index=False, encoding="utf-8-sig")
         """
 
-        if not os.path.exists(self.excel_path):
+        if os.path.isfile(self.excel_path):
+            with pd.ExcelWriter(
+                self.excel_path,
+                mode="a",
+                engine="openpyxl",
+                if_sheet_exists="overlay",
+            ) as writer:
+                data.to_excel(
+                    writer,
+                    header=False,
+                    index=False,
+                    startrow=writer.sheets["Sheet1"].max_row,
+                )
+        else:
             with pd.ExcelWriter(self.excel_path, mode="w", engine="openpyxl") as writer:
                 data.to_excel(writer, index=False)
-        else:
-            with pd.ExcelWriter(self.excel_path, mode="a", engine="openpyxl") as writer:
-                data.to_excel(writer, header=False, index=False)
 
         self.tutor_cnt = self.tutor_cnt + len(data)
 
         print("**** " + str(round(self.tutor_cnt / self.tutor_total * 100, 1)) + "% 강사정보 입력 완료! (" + str(self.tutor_cnt) + "/" + str(self.tutor_total) + ") ****")
 
-    @retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
+    @retry(stop=stop_after_attempt(15), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
     async def fetch(self, session, page):
         ua = UserAgent(browsers=["edge", "chrome"])
 
         page_url = "http://www.lessoninfo.co.kr/resume/index.php?page=" + str(page + 1)
-        # await asyncio.sleep(randint(5, 15))
         async with self.limit:
             async with session.get(page_url, headers={"User-Agent": ua.random}) as response:
                 resp = await response.content.read()
