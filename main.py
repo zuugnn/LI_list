@@ -121,10 +121,10 @@ class LessonInCrawler:
 
         if not os.path.exists(self.excel_path):
             with pd.ExcelWriter(self.excel_path, mode="w", engine="openpyxl") as writer:
-                data.to_excel(writer, index=False, encoding="utf-8-sig")
+                data.to_excel(writer, index=False)
         else:
             with pd.ExcelWriter(self.excel_path, mode="a", engine="openpyxl") as writer:
-                data.to_excel(writer, header=False, index=False, encoding="utf-8-sig")
+                data.to_excel(writer, header=False, index=False)
 
         self.tutor_cnt = self.tutor_cnt + len(data)
 
