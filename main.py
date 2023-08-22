@@ -104,7 +104,7 @@ class LessonInCrawler:
         if os.path.isfile(path):
             os.remove(path)
         else:
-            raise ValueError("해당 경로를 확인해주세요")
+            pass
 
     def Save_Tutor_info_to_excel(self, data_list):
         self.Check_dir()
@@ -159,7 +159,7 @@ class LessonInCrawler:
                     self.Save_Tutor_info_to_excel(data_list)
 
     async def crawl(self):
-        self.delete_file(self.csv_path)
+        self.delete_file(self.excel_path)
         # futures = [asyncio.ensure_future(self.fetch(page)) for page in range(self.max_pages)]
         # await asyncio.gather(*futures)
         async with aiohttp.ClientSession() as session:
