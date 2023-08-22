@@ -2,16 +2,13 @@ from bs4 import BeautifulSoup as bs
 import urllib.request
 from fake_useragent import UserAgent
 import pandas as pd
-from random import randint
 import datetime
 import math
 import os
-import re
 import timeit
 import aiohttp
 import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential, after_log
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from win32comext.shell import shell, shellcon
 import logging
@@ -33,14 +30,11 @@ class LessonInCrawler:
             self.tutor_total = int(max_pages * 25)
 
         # self.executor = ThreadPoolExecutor(max_workers=min(self.max_pages + 3, os.cpu_count()))
-        self.executor = ThreadPoolExecutor(10)
         self.limit = asyncio.Semaphore(5)
         self.tutor_cnt = 0
-        # self.page_cnt = 0
-        # self.data_list = []
         self.folder_root = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOP, 0, 0), "LessonIn")
-        csv_name = "tutor_list_" + str(datetime.datetime.now().date())
-        self.csv_path = os.path.join(self.folder_root, f"{csv_name}.csv")
+        excel_name = "tutor_list_" + str(datetime.datetime.now().date())
+        self.excel_path = os.path.join(self.folder_root, f"{excel_name}.xlsx")
 
     def Get_Tutor_info(self, tutor_no, soup):
         t_phone = soup.select_one("#smsSendFrm input[name='rphone']")["value"]
@@ -112,20 +106,25 @@ class LessonInCrawler:
         else:
             raise ValueError("해당 경로를 확인해주세요")
 
-    def Save_Tutor_info_to_csv(self, data_list):
+    def Save_Tutor_info_to_excel(self, data_list):
         self.Check_dir()
 
         data = pd.concat(data_list)
-        # data = data_list
 
-        # csv_name = "tutor_list_" + str(datetime.datetime.now().date())
-        # csv_path = os.path.join(self.folder_root, f"{csv_name}.csv")
-
-        if os.path.isfile(self.csv_path):
-            data.to_csv(self.csv_path, mode="a", header=False, index=False, encoding="utf-8-sig")
+        """
+        if os.path.isfile(self.excel_path):
+            data.to_excel(self.excel_path, mode="a", header=False, index=False, encoding="utf-8-sig")
 
         else:
-            data.to_csv(self.csv_path, mode="w", header=True, index=False, encoding="utf-8-sig")
+            data.to_excel(self.excel_path, mode="w", header=True, index=False, encoding="utf-8-sig")
+        """
+
+        if not os.path.exists(self.excel_path):
+            with pd.ExcelWriter(self.excel_path, mode="w", engine="openpyxl") as writer:
+                data.to_excel(writer, index=False, encoding="utf-8-sig")
+        else:
+            with pd.ExcelWriter(self.excel_path, mode="a", engine="openpyxl") as writer:
+                data.to_excel(writer, header=False, index=False, encoding="utf-8-sig")
 
         self.tutor_cnt = self.tutor_cnt + len(data)
 
@@ -134,7 +133,6 @@ class LessonInCrawler:
     @retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
     async def fetch(self, session, page):
         ua = UserAgent(browsers=["edge", "chrome"])
-        # headers = {"User-Agent": ua.random}
 
         page_url = "http://www.lessoninfo.co.kr/resume/index.php?page=" + str(page + 1)
         # await asyncio.sleep(randint(5, 15))
@@ -142,8 +140,6 @@ class LessonInCrawler:
             async with session.get(page_url, headers={"User-Agent": ua.random}) as response:
                 resp = await response.content.read()
                 # resp = await loop.run_in_executor(self.executor, urllib.request.urlopen, urllib.request.Request(url=page_url, headers={"User-Agent": ua.random}))
-                # resp = urllib.request.urlopen(urllib.request.Request(url=page_url, headers={"User-Agent": ua.random}))
-                # resp = await loop.run_in_executor(self.executor, urllib.request.urlopen, page_url)
 
                 soup = bs(resp, "lxml", from_encoding="utf-8")
                 tutor_list_html = soup.select("#listForm:last-child tbody tr")
@@ -155,15 +151,12 @@ class LessonInCrawler:
                     async with session.get(tutor_html_url, headers={"User-Agent": ua.random}) as response:
                         tutor_html = await response.content.read()
                         # tutor_html = await loop.run_in_executor(self.executor, urllib.request.urlopen, urllib.request.Request(url=tutor_html_url, headers={"User-Agent": ua.random}))
-                        # tutor_html = await loop.run_in_executor(self.executor, urllib.request.urlopen, tutor_html_url)
-                        # tutor_html = urllib.request.urlopen(tutor_html_url)
+
                         soup = bs(tutor_html, "lxml", from_encoding="utf-8")
-                        # self.data_list.append(self.Get_Tutor_info(soup))
                     data = self.Get_Tutor_info(tutor_no, soup)
                     data_list.append(data)
                 else:
-                    # await loop.run_in_executor(self.executor, self.Save_Tutor_info_to_csv, data_list)
-                    self.Save_Tutor_info_to_csv(data_list)
+                    self.Save_Tutor_info_to_excel(data_list)
 
     async def crawl(self):
         self.delete_file(self.csv_path)
@@ -171,8 +164,6 @@ class LessonInCrawler:
         # await asyncio.gather(*futures)
         async with aiohttp.ClientSession() as session:
             await asyncio.gather(*[self.fetch(session, page) for page in range(self.max_pages)])
-
-        # self.Save_Tutor_info_to_csv(self.data_list)
 
         print("******** " + str(self.tutor_cnt) + "명의 강사 정보를 입력했습니다. ********")
 
